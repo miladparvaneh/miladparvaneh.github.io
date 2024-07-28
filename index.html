@@ -19,11 +19,21 @@
             stroke: red;
             stroke-width: 1px;
         }
+        .tooltip {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
     </style>
 </head>
 <body>
     <h1>Car Fuel Efficiency Visualization</h1>
     <div id="chart"></div>
+    <div id="tooltip" class="tooltip"></div>
     <script>
         (async function() {
             const data = await d3.csv("https://flunky.github.io/cars2017.csv");
@@ -74,7 +84,9 @@
                 .attr("y", d => y(d.highway))
                 .attr("width", x.bandwidth() / 2)
                 .attr("height", d => height - y(d.highway))
-                .attr("fill", "steelblue");
+                .attr("fill", "steelblue")
+                .on("mouseover", (event, d) => showTooltip(event, d, "highway"))
+                .on("mouseout", hideTooltip);
 
             svg.append("g")
                 .selectAll(".bar")
@@ -85,7 +97,9 @@
                 .attr("y", d => y(d.city))
                 .attr("width", x.bandwidth() / 2)
                 .attr("height", d => height - y(d.city))
-                .attr("fill", "orange");
+                .attr("fill", "orange")
+                .on("mouseover", (event, d) => showTooltip(event, d, "city"))
+                .on("mouseout", hideTooltip);
 
             svg.append("g")
                 .attr("class", "x-axis")
@@ -151,6 +165,18 @@
                 .attr("y1", y(lowestCity.city) + 5)
                 .attr("x2", x(lowestCity.make) + 3 * x.bandwidth() / 4)
                 .attr("y2", y(lowestCity.city) - 5);
+        }
+
+        function showTooltip(event, d, type) {
+            const tooltip = d3.select("#tooltip");
+            tooltip.transition().duration(200).style("opacity", .9);
+            tooltip.html(`${d.make}<br>${type === "highway" ? "Highway MPG: " + d.highway : "City MPG: " + d.city}`)
+                .style("left", (event.pageX + 5) + "px")
+                .style("top", (event.pageY - 28) + "px");
+        }
+
+        function hideTooltip() {
+            d3.select("#tooltip").transition().duration(500).style("opacity", 0);
         }
     </script>
 </body>
