@@ -48,8 +48,10 @@
     <button class="button" onclick="showScene1()">Scene 1: Highway MPG</button>
     <button class="button" onclick="showScene2()">Scene 2: City MPG</button>
     <script>
+        let svg, x, y, width, height, margin, data;
+
         (async function() {
-            const data = await d3.csv("https://flunky.github.io/cars2017.csv");
+            data = await d3.csv("https://flunky.github.io/cars2017.csv");
 
             // Convert numerical values from strings to numbers
             data.forEach(d => {
@@ -64,22 +66,22 @@
             }), d => d.Make).map(([make, avg]) => ({ make, ...avg }));
 
             // Initialize the SVG and scales
-            const margin = { top: 20, right: 30, bottom: 100, left: 50 };
-            const width = 1000 - margin.left - margin.right;
-            const height = 500 - margin.top - margin.bottom;
+            margin = { top: 20, right: 30, bottom: 100, left: 50 };
+            width = 1000 - margin.left - margin.right;
+            height = 500 - margin.top - margin.bottom;
 
-            const svg = d3.select("#chart").append("svg")
+            svg = d3.select("#chart").append("svg")
                 .attr("width", width + margin.left + margin.right)
                 .attr("height", height + margin.top + margin.bottom)
               .append("g")
                 .attr("transform", `translate(${margin.left},${margin.top})`);
 
-            const x = d3.scaleBand()
+            x = d3.scaleBand()
                 .domain(averageMPG.map(d => d.make))
                 .range([0, width])
                 .padding(0.1);
 
-            const y = d3.scaleLinear()
+            y = d3.scaleLinear()
                 .range([height, 0]);
 
             svg.append("g")
@@ -139,25 +141,58 @@
                     .attr("y", d => y(d.highway))
                     .attr("width", x.bandwidth())
                     .attr("height", d => height - y(d.highway))
-                    .attr("fill", "steelblue");
+                    .attr("fill", "steelblue")
+                    .on("mouseover", (event, d) => showTooltip(event, d, "highway"))
+                    .on("mouseout", hideTooltip);
 
                 bars.exit()
                     .transition().duration(1000)
                     .attr("y", y(0))
                     .attr("height", 0)
                     .remove();
-            }
 
+                // Annotations
+                const highestHighway = averageMPG.reduce((max, d) => d.highway > max.highway ? d : max, averageMPG[0]);
+                const lowestCity = averageMPG.reduce((min, d) => d.city < min.city ? d : min, averageMPG[0]);
+
+                svg.append("text")
+                    .attr("class", "annotation")
+                    .attr("x", x(highestHighway.make) + x.bandwidth() / 4)
+                    .attr("y", y(highestHighway.highway) - 10)
+                    .attr("text-anchor", "middle")
+                    .text("Highest Highway MPG");
+
+                svg.append("line")
+                    .attr("class", "annotation-line")
+                    .attr("x1", x(highestHighway.make) + x.bandwidth() / 4)
+                    .attr("y1", y(highestHighway.highway) - 5)
+                    .attr("x2", x(highestHighway.make) + x.bandwidth() / 4)
+                    .attr("y2", y(highestHighway.highway) + 5);
+
+                svg.append("text")
+                    .attr("class", "annotation")
+                    .attr("x", x(lowestCity.make) + 3 * x.bandwidth() / 4)
+                    .attr("y", y(lowestCity.city) + 20)
+                    .attr("text-anchor", "middle")
+                    .text("Lowest City MPG");
+
+                svg.append("line")
+                    .attr("class", "annotation-line")
+                    .attr("x1", x(lowestCity.make) + 3 * x.bandwidth() / 4)
+                    .attr("y1", y(lowestCity.city) + 5)
+                    .attr("x2", x(lowestCity.make) + 3 * x.bandwidth() / 4)
+                    .attr("y2", y(lowestCity.city) - 5);
+            }
             function showScene2() {
                 y.domain([0, d3.max(averageMPG, d => d.city)]).nice();
-
+            
                 svg.select(".y-axis")
                     .transition().duration(1000)
                     .call(d3.axisLeft(y));
-
+            
                 const bars = svg.selectAll(".bar")
                     .data(averageMPG, d => d.make);
-
+            
                 bars.enter().append("rect")
                     .attr("class", "bar")
                     .attr("x", d => x(d.make))
@@ -170,13 +205,19 @@
                     .attr("y", d => y(d.city))
                     .attr("width", x.bandwidth())
                     .attr("height", d => height - y(d.city))
-                    .attr("fill", "orange");
-
+                    .attr("fill", "orange")
+                    .on("mouseover", (event, d) => showTooltip(event, d, "city"))
+                    .on("mouseout", hideTooltip);
+            
                 bars.exit()
                     .transition().duration(1000)
                     .attr("y", y(0))
                     .attr("height", 0)
                     .remove();
+            
+                // Remove annotations from Scene 1
+                svg.selectAll(".annotation").remove();
+                svg.selectAll(".annotation-line").remove();
             }
 
             function showTooltip(event, d, type) {
