@@ -15,6 +15,10 @@
             font-size: 14px;
             fill: red;
         }
+        .annotation-line {
+            stroke: red;
+            stroke-width: 1px;
+        }
     </style>
 </head>
 <body>
@@ -41,9 +45,9 @@
         })();
 
         function createBarChart(data) {
-            const margin = { top: 20, right: 30, bottom: 40, left: 50 };
-            const width = 800 - margin.left - margin.right;
-            const height = 400 - margin.top - margin.bottom;
+            const margin = { top: 20, right: 30, bottom: 100, left: 50 };
+            const width = 1000 - margin.left - margin.right;
+            const height = 500 - margin.top - margin.bottom;
 
             const svg = d3.select("#chart").append("svg")
                 .attr("width", width + margin.left + margin.right)
@@ -88,8 +92,8 @@
                 .attr("transform", `translate(0,${height})`)
                 .call(d3.axisBottom(x))
               .selectAll("text")
-                .attr("y", 0)
-                .attr("x", 9)
+                .attr("y", 10)
+                .attr("x", 10)
                 .attr("dy", ".35em")
                 .attr("transform", "rotate(45)")
                 .style("text-anchor", "start");
@@ -102,31 +106,51 @@
             svg.append("text")
                 .attr("class", "axis-label")
                 .attr("x", width / 2)
-                .attr("y", height + margin.bottom)
+                .attr("y", height + margin.bottom - 50)
                 .style("text-anchor", "middle")
                 .text("Manufacturer");
 
             svg.append("text")
                 .attr("class", "axis-label")
                 .attr("transform", "rotate(-90)")
-                .attr("y", -margin.left)
+                .attr("y", -margin.left + 15)
                 .attr("x", -height / 2)
                 .attr("dy", "1em")
                 .style("text-anchor", "middle")
                 .text("Miles Per Gallon (MPG)");
 
+            // Find highest highway MPG and lowest city MPG
+            const highestHighway = data.reduce((max, d) => d.highway > max.highway ? d : max, data[0]);
+            const lowestCity = data.reduce((min, d) => d.city < min.city ? d : min, data[0]);
+
             // Add annotations
             svg.append("text")
                 .attr("class", "annotation")
-                .attr("x", x("Acura") + x.bandwidth() / 4)
-                .attr("y", y(d3.max(data, d => d.highway)) - 10)
+                .attr("x", x(highestHighway.make) + x.bandwidth() / 4)
+                .attr("y", y(highestHighway.highway) - 10)
+                .attr("text-anchor", "middle")
                 .text("Highest Highway MPG");
+
+            svg.append("line")
+                .attr("class", "annotation-line")
+                .attr("x1", x(highestHighway.make) + x.bandwidth() / 4)
+                .attr("y1", y(highestHighway.highway) - 5)
+                .attr("x2", x(highestHighway.make) + x.bandwidth() / 4)
+                .attr("y2", y(highestHighway.highway) + 5);
 
             svg.append("text")
                 .attr("class", "annotation")
-                .attr("x", x("Aston Martin") + x.bandwidth() / 4)
-                .attr("y", y(d3.min(data, d => d.city)) + 20)
+                .attr("x", x(lowestCity.make) + 3 * x.bandwidth() / 4)
+                .attr("y", y(lowestCity.city) + 20)
+                .attr("text-anchor", "middle")
                 .text("Lowest City MPG");
+
+            svg.append("line")
+                .attr("class", "annotation-line")
+                .attr("x1", x(lowestCity.make) + 3 * x.bandwidth() / 4)
+                .attr("y1", y(lowestCity.city) + 5)
+                .attr("x2", x(lowestCity.make) + 3 * x.bandwidth() / 4)
+                .attr("y2", y(lowestCity.city) - 5);
         }
     </script>
 </body>
