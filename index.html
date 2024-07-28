@@ -2,236 +2,592 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Car Fuel Efficiency Visualization</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narrative Visualization</title>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <style>
-        .bar {
-            fill: steelblue;
+        body {
+            font-family: Arial, sans-serif;
         }
-        .axis-label {
-            font-size: 12px;
+        .scene {
+            display: none;
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
-        .annotation {
-            font-size: 14px;
-            fill: red;
+        .visible {
+            display: block;
         }
-        .annotation-line {
+        .buttons {
+            text-align: center;
+            margin-top: 20px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+	.annotation {
+            font-weight: bold;
+            color: red;
+        }
+	.annotation-line {
             stroke: red;
             stroke-width: 1px;
         }
         .tooltip {
             position: absolute;
-            background-color: white;
-            border: 1px solid #ccc;
-            padding: 10px;
+            text-align: center;
+            width: auto;
+            height: auto;
+            padding: 8px;
+            font: 12px sans-serif;
+            background: lightsteelblue;
+            border: 0;
+            border-radius: 8px;
             pointer-events: none;
             opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .button {
-            margin: 5px;
-            padding: 10px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .button:hover {
-            background-color: #0056b3;
         }
     </style>
 </head>
 <body>
-    <h1>Car Fuel Efficiency Visualization</h1>
-    <div id="chart"></div>
-    <div id="tooltip" class="tooltip"></div>
-    <button class="button" onclick="showScene1()">Scene 1: Highway MPG</button>
-    <button class="button" onclick="showScene2()">Scene 2: City MPG</button>
+    <h1>Narrative Visualization: Fuel Efficiency Analysis</h1>
+    
+    <div id="scene1" class="scene visible">
+        <h2>Scene 1: Overview of Fuel Efficiency</h2>
+        <p>Bar chart showing average highway and city MPG for all manufacturers.</p>
+        <div id="chart1"></div>
+    </div>
+    <div id="tooltip1" class="tooltip"></div>
+    
+<div id="scene2" class="scene">
+    <h2>Scene 2: Manufacturer Breakdown</h2>
+    <p>Interactive chart allowing users to select a manufacturer to see detailed fuel efficiency.</p>
+    <select id="manufacturerSelect">
+        <option value="all">All Manufacturers</option>
+    </select>
+    <div id="chart2"></div>
+</div>
+    
+    <div id="scene3" class="scene">
+        <h2>Scene 3: Engine Cylinders Comparison</h2>
+        <p>Scatter plot comparing engine cylinders with fuel efficiency.</p>
+        <div id="chart3"></div>
+    </div>
+    
+    <div class="buttons">
+        <button onclick="showScene(1)">Scene 1</button>
+        <button onclick="showScene(2)">Scene 2</button>
+        <button onclick="showScene(3)">Scene 3</button>
+    </div>
+    
     <script>
-        let svg, x, y, width, height, margin, data;
+        function showScene(sceneNumber) {
+            d3.selectAll('.scene').classed('visible', false);
+            d3.select('#scene' + sceneNumber).classed('visible', true);
+        }
 
         (async function() {
-            data = await d3.csv("https://flunky.github.io/cars2017.csv");
+            const data = await d3.csv("https://flunky.github.io/cars2017.csv");
 
-            // Convert numerical values from strings to numbers
+            // Converting numerical values from strings to numbers
             data.forEach(d => {
                 d.AverageHighwayMPG = +d.AverageHighwayMPG;
                 d.AverageCityMPG = +d.AverageCityMPG;
             });
 
-            // Aggregate data by manufacturer
+            // Aggregating data by manufacturer
             const averageMPG = d3.rollups(data, v => ({
                 highway: d3.mean(v, d => d.AverageHighwayMPG),
                 city: d3.mean(v, d => d.AverageCityMPG)
             }), d => d.Make).map(([make, avg]) => ({ make, ...avg }));
 
-            // Initialize the SVG and scales
-            margin = { top: 20, right: 30, bottom: 100, left: 50 };
-            width = 1000 - margin.left - margin.right;
-            height = 500 - margin.top - margin.bottom;
+            // Creating the visualization
+            createBarChart(averageMPG);
+        })();
 
-            svg = d3.select("#chart").append("svg")
-                .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
-              .append("g")
-                .attr("transform", `translate(${margin.left},${margin.top})`);
+function createBarChart(data) {
+    const margin = { top: 20, right: 20, bottom: 100, left: 100 };
+    const width = 1400 - margin.left - margin.right;
+    const height = 600 - margin.top - margin.bottom;
 
-            x = d3.scaleBand()
-                .domain(averageMPG.map(d => d.make))
-                .range([0, width])
-                .padding(0.1);
+    const svg = d3.select("#chart1").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
 
-            y = d3.scaleLinear()
-                .range([height, 0]);
+    const x = d3.scaleBand()
+        .domain(data.map(d => d.make))
+        .range([0, width])
+        .padding(0.1);
+
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(data, d => Math.max(d.highway, d.city))])
+        .nice()
+        .range([height, 0]);
+
+    svg.append("g")
+        .selectAll(".bar")
+        .data(data)
+      .enter().append("rect")
+        .attr("class", "bar")
+        .attr("x", d => x(d.make))
+        .attr("y", d => y(d.highway))
+        .attr("width", x.bandwidth() / 2)
+        .attr("height", d => height - y(d.highway))
+        .attr("fill", "steelblue")
+        .on("mouseover", (event, d) => showTooltip(event, d, "highway"))
+        .on("mouseout", hideTooltip);
+
+    svg.append("g")
+        .selectAll(".bar")
+        .data(data)
+      .enter().append("rect")
+        .attr("class", "bar")
+        .attr("x", d => x(d.make) + x.bandwidth() / 2)
+        .attr("y", d => y(d.city))
+        .attr("width", x.bandwidth() / 2)
+        .attr("height", d => height - y(d.city))
+        .attr("fill", "orange")
+        .on("mouseover", (event, d) => showTooltip(event, d, "city"))
+        .on("mouseout", hideTooltip);
+
+    svg.append("g")
+        .attr("class", "x-axis")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(x))
+      .selectAll("text")
+        .attr("y", 10)
+        .attr("x", 10)
+        .attr("dy", ".35em")
+        .attr("transform", "rotate(45)")
+        .style("text-anchor", "start");
+
+    svg.append("g")
+        .attr("class", "y-axis")
+        .call(d3.axisLeft(y));
+
+    // Add labels
+    svg.append("text")
+        .attr("class", "axis-label")
+        .attr("x", width / 2)
+        .attr("y", height + margin.bottom - 20)
+        .style("text-anchor", "middle")
+        .text("Manufacturer");
+
+    svg.append("text")
+        .attr("class", "axis-label")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -margin.left + 20)
+        .attr("x", -height / 2)
+        .attr("dy", "1em")
+        .style("text-anchor", "middle")
+        .text("Miles Per Gallon (MPG)");
+
+    // Highest highway MPG and lowest city MPG
+    const highestHighway = data.reduce((max, d) => d.highway > max.highway ? d : max, data[0]);
+    const lowestCity = data.reduce((min, d) => d.city < min.city ? d : min, data[0]);
+
+    // Adding annotations
+    svg.append("text")
+        .attr("class", "annotation")
+        .attr("x", x(highestHighway.make) + x.bandwidth() / 4)
+        .attr("y", y(highestHighway.highway) - 10)
+        .attr("text-anchor", "middle")
+        .text("Highest Highway MPG");
+
+    svg.append("line")
+        .attr("class", "annotation-line")
+        .attr("x1", x(highestHighway.make) + x.bandwidth() / 4)
+        .attr("y1", y(highestHighway.highway) - 5)
+        .attr("x2", x(highestHighway.make) + x.bandwidth() / 4)
+        .attr("y2", y(highestHighway.highway) + 5);
+
+    svg.append("text")
+        .attr("class", "annotation")
+        .attr("x", x(lowestCity.make) + 3 * x.bandwidth() / 4)
+        .attr("y", y(lowestCity.city) + 20)
+        .attr("text-anchor", "middle")
+        .text("Lowest City MPG");
+
+    svg.append("line")
+        .attr("class", "annotation-line")
+        .attr("x1", x(lowestCity.make) + 3 * x.bandwidth() / 4)
+        .attr("y1", y(lowestCity.city) + 5)
+        .attr("x2", x(lowestCity.make) + 3 * x.bandwidth() / 4)
+        .attr("y2", y(lowestCity.city) - 5);
+
+// Adding legend
+        const legendData = [
+            { label: 'Highway MPG', color: 'steelblue' },
+            { label: 'City MPG', color: 'orange' }
+        ];
+
+        const legend = svg.selectAll(".legend")
+            .data(legendData)
+            .enter().append("g")
+            .attr("class", "legend")
+            .attr("transform", (d, i) => `translate(0,${i * 20})`);
+
+        legend.append("rect")
+            .attr("x", 124)
+            .attr("width", 18)
+            .attr("height", 18)
+            .style("fill", d => d.color);
+
+        legend.append("text")
+            .attr("x", 118)
+            .attr("y", 9)
+            .attr("dy", ".35em")
+            .style("text-anchor", "end")
+            .text(d => d.label);
+}
+
+
+        function showTooltip(event, d, type) {
+            const tooltip = d3.select("#tooltip1");
+            tooltip.transition().duration(200).style("opacity", .9);
+            tooltip.html(`${d.make}<br>${type === "highway" ? "Highway MPG: " + d.highway : "City MPG: " + d.city}`)
+                .style("left", (event.pageX + 5) + "px")
+                .style("top", (event.pageY - 28) + "px");
+        }
+
+        function hideTooltip() {
+            d3.select("#tooltip1").transition().duration(500).style("opacity", 0);
+        }
+
+    </script>
+
+
+<script>
+    // Function to create the interactive chart for Scene 2
+    function createScene2(data) {
+        // Get unique manufacturers
+        const manufacturers = [...new Set(data.map(d => d.Make))];
+
+        // Populating the dropdown menu
+        const select = d3.select("#manufacturerSelect");
+        manufacturers.forEach(manufacturer => {
+            select.append("option").text(manufacturer).attr("value", manufacturer);
+        });
+
+        // Setting up dimensions
+        const margin = { top: 20, right: 20, bottom: 100, left: 100 };
+        const width = 1400 - margin.left - margin.right;
+        const height = 600 - margin.top - margin.bottom;
+
+        // Setting up scales
+        const x0 = d3.scaleBand().range([0, width]).padding(0.1);
+        const x1 = d3.scaleBand().padding(0.05);
+        const y = d3.scaleLinear().range([height, 0]);
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+        const svg = d3.select("#chart2").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Initial rendering of the chart
+        updateChart("all");
+
+        // Updating chart function
+        function updateChart(selectedManufacturer) {
+            let filteredData = data;
+            if (selectedManufacturer !== "all") {
+                filteredData = data.filter(d => d.Make === selectedManufacturer);
+            }
+
+            const nestedData = d3.groups(filteredData, d => d.Make, d => d.Fuel + " (" + d.EngineCylinders + " cylinders)");
+
+            x0.domain(nestedData.map(d => d[0]));
+            x1.domain(d3.union(...nestedData.map(d => d[1].map(sub => sub[0])))).range([0, x0.bandwidth()]);
+            y.domain([0, d3.max(filteredData, d => Math.max(+d.AverageHighwayMPG, +d.AverageCityMPG))]).nice();
+
+            svg.selectAll("*").remove();
 
             svg.append("g")
-                .attr("class", "x-axis")
+                .attr("class", "x axis")
                 .attr("transform", `translate(0,${height})`)
-                .call(d3.axisBottom(x))
-              .selectAll("text")
-                .attr("y", 10)
-                .attr("x", 10)
-                .attr("dy", ".35em")
-                .attr("transform", "rotate(45)")
-                .style("text-anchor", "start");
+                .call(d3.axisBottom(x0))
+                .selectAll("text")
+                .style("text-anchor", "end")
+                .attr("dx", "-.8em")
+                .attr("dy", ".15em")
+                .attr("transform", "rotate(-65)");
 
             svg.append("g")
-                .attr("class", "y-axis");
+                .attr("class", "y axis")
+                .call(d3.axisLeft(y));
 
-            // Add labels
             svg.append("text")
                 .attr("class", "axis-label")
                 .attr("x", width / 2)
-                .attr("y", height + margin.bottom - 50)
+                .attr("y", height + margin.bottom)
                 .style("text-anchor", "middle")
                 .text("Manufacturer");
 
             svg.append("text")
                 .attr("class", "axis-label")
                 .attr("transform", "rotate(-90)")
-                .attr("y", -margin.left + 15)
                 .attr("x", -height / 2)
+                .attr("y", -margin.left + 20)
                 .attr("dy", "1em")
                 .style("text-anchor", "middle")
                 .text("Miles Per Gallon (MPG)");
 
-            // Initial display
-            showScene1();
+            const manufacturer = svg.selectAll(".manufacturer")
+                .data(nestedData)
+                .enter().append("g")
+                .attr("class", "manufacturer")
+                .attr("transform", d => `translate(${x0(d[0])},0)`);
 
-            // Scene transition functions
-            function showScene1() {
-                y.domain([0, d3.max(averageMPG, d => d.highway)]).nice();
+            manufacturer.selectAll("rect")
+                .data(d => d[1].flatMap(sub => sub[1].map(g => ({
+                    key: sub[0], value: g.AverageHighwayMPG, type: 'Highway', Make: g.Make, fuel: g.Fuel, cylinders: g.EngineCylinders
+                }))))
+                .enter().append("rect")
+                .attr("x", d => x1(d.key))
+                .attr("y", d => y(+d.value))
+                .attr("width", x1.bandwidth() / 2)
+                .attr("height", d => height - y(+d.value))
+                .attr("fill", d => color(d.key))
+                .attr("class", d => d.type.toLowerCase())
+                .on("mouseover", function (event, d) {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(`Manufacturer: ${d.Make}<br>${d.fuel} (${d.cylinders} cylinders)<br>Highway MPG: ${d.value}`)
+                        .style("left", (event.pageX + 5) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function () {
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
 
-                svg.select(".y-axis")
-                    .transition().duration(1000)
-                    .call(d3.axisLeft(y));
+            manufacturer.selectAll("rect.city")
+                .data(d => d[1].flatMap(sub => sub[1].map(g => ({
+                    key: sub[0], value: g.AverageCityMPG, type: 'City', Make: g.Make, fuel: g.Fuel, cylinders: g.EngineCylinders
+                }))))
+                .enter().append("rect")
+                .attr("x", d => x1(d.key) + x1.bandwidth() / 2)
+                .attr("y", d => y(+d.value))
+                .attr("width", x1.bandwidth() / 2)
+                .attr("height", d => height - y(+d.value))
+                .attr("fill", d => color(d.key))
+                .attr("class", d => d.type.toLowerCase())
+                .on("mouseover", function (event, d) {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(`Manufacturer: ${d.Make}<br>${d.fuel} (${d.cylinders} cylinders)<br>City MPG: ${d.value}`)
+                        .style("left", (event.pageX + 5) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function () {
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
 
-                const bars = svg.selectAll(".bar")
-                    .data(averageMPG, d => d.make);
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0)
+                .style("position", "absolute")
+                .style("text-align", "center")
+                .style("width", "auto")
+                .style("height", "auto")
+                .style("padding", "8px")
+                .style("font", "12px sans-serif")
+                .style("background", "lightsteelblue")
+                .style("border", "0px")
+                .style("border-radius", "8px")
+                .style("pointer-events", "none");
 
-                bars.enter().append("rect")
-                    .attr("class", "bar")
-                    .attr("x", d => x(d.make))
-                    .attr("y", y(0))
-                    .attr("width", x.bandwidth())
-                    .attr("height", 0)
-                  .merge(bars)
-                    .transition().duration(1000)
-                    .attr("x", d => x(d.make))
-                    .attr("y", d => y(d.highway))
-                    .attr("width", x.bandwidth())
-                    .attr("height", d => height - y(d.highway))
-                    .attr("fill", "steelblue")
-                    .on("mouseover", (event, d) => showTooltip(event, d, "highway"))
-                    .on("mouseout", hideTooltip);
+            svg.append("text")
+                .attr("class", "annotation")
+                .attr("x", width / 2)
+                .attr("y", -5)
+                .attr("text-anchor", "middle")
+                .text("Comparison of Highway and City MPG for Each Manufacturer");
 
-                bars.exit()
-                    .transition().duration(1000)
-                    .attr("y", y(0))
-                    .attr("height", 0)
-                    .remove();
+            const legend = svg.selectAll(".legend")
+                .data(x1.domain().slice())
+                .enter().append("g")
+                .attr("class", "legend")
+                .attr("transform", (d, i) => `translate(0,${i * 20})`);
 
-                // Annotations
-                const highestHighway = averageMPG.reduce((max, d) => d.highway > max.highway ? d : max, averageMPG[0]);
-                const lowestCity = averageMPG.reduce((min, d) => d.city < min.city ? d : min, averageMPG[0]);
+            legend.append("rect")
+                .attr("x", width - 18)
+                .attr("width", 18)
+                .attr("height", 18)
+                .style("fill", color);
 
-                svg.append("text")
-                    .attr("class", "annotation")
-                    .attr("x", x(highestHighway.make) + x.bandwidth() / 4)
-                    .attr("y", y(highestHighway.highway) - 10)
-                    .attr("text-anchor", "middle")
-                    .text("Highest Highway MPG");
+            legend.append("text")
+                .attr("x", width - 24)
+                .attr("y", 9)
+                .attr("dy", ".35em")
+                .style("text-anchor", "end")
+                .text(d => d);
+        }
 
-                svg.append("line")
-                    .attr("class", "annotation-line")
-                    .attr("x1", x(highestHighway.make) + x.bandwidth() / 4)
-                    .attr("y1", y(highestHighway.highway) - 5)
-                    .attr("x2", x(highestHighway.make) + x.bandwidth() / 4)
-                    .attr("y2", y(highestHighway.highway) + 5);
+        // Listening for changes in the dropdown menu
+        d3.select("#manufacturerSelect").on("change", function () {
+            const selectedManufacturer = d3.select(this).property("value");
+            updateChart(selectedManufacturer);
+        });
+    }
 
-                svg.append("text")
-                    .attr("class", "annotation")
-                    .attr("x", x(lowestCity.make) + 3 * x.bandwidth() / 4)
-                    .attr("y", y(lowestCity.city) + 20)
-                    .attr("text-anchor", "middle")
-                    .text("Lowest City MPG");
+    // Loading the data and create Scene 2
+    d3.csv("https://flunky.github.io/cars2017.csv").then(function (data) {
+        createScene2(data);
+    });
+</script>
 
-                svg.append("line")
-                    .attr("class", "annotation-line")
-                    .attr("x1", x(lowestCity.make) + 3 * x.bandwidth() / 4)
-                    .attr("y1", y(lowestCity.city) + 5)
-                    .attr("x2", x(lowestCity.make) + 3 * x.bandwidth() / 4)
-                    .attr("y2", y(lowestCity.city) - 5);
-            }
-            function showScene2() {
-                y.domain([0, d3.max(averageMPG, d => d.city)]).nice();
-            
-                svg.select(".y-axis")
-                    .transition().duration(1000)
-                    .call(d3.axisLeft(y));
-            
-                const bars = svg.selectAll(".bar")
-                    .data(averageMPG, d => d.make);
-            
-                bars.enter().append("rect")
-                    .attr("class", "bar")
-                    .attr("x", d => x(d.make))
-                    .attr("y", y(0))
-                    .attr("width", x.bandwidth())
-                    .attr("height", 0)
-                  .merge(bars)
-                    .transition().duration(1000)
-                    .attr("x", d => x(d.make))
-                    .attr("y", d => y(d.city))
-                    .attr("width", x.bandwidth())
-                    .attr("height", d => height - y(d.city))
-                    .attr("fill", "orange")
-                    .on("mouseover", (event, d) => showTooltip(event, d, "city"))
-                    .on("mouseout", hideTooltip);
-            
-                bars.exit()
-                    .transition().duration(1000)
-                    .attr("y", y(0))
-                    .attr("height", 0)
-                    .remove();
-            
-                // Remove annotations from Scene 1
-                svg.selectAll(".annotation").remove();
-                svg.selectAll(".annotation-line").remove();
-            }
 
-            function showTooltip(event, d, type) {
-                const tooltip = d3.select("#tooltip");
-                tooltip.transition().duration(200).style("opacity", .9);
-                tooltip.html(`${d.make}<br>${type === "highway" ? "Highway MPG: " + d.highway : "City MPG: " + d.city}`)
-                    .style("left", (event.pageX + 5) + "px")
-                    .style("top", (event.pageY - 28) + "px");
-            }
+<script>
+    // Function to create the scatter plot for Scene 3
+    function createScatterPlot(data) {
+        // Setting up dimensions
+        const margin = { top: 20, right: 20, bottom: 100, left: 100 };
+        const width = 1400 - margin.left - margin.right;  // Smaller width
+        const height = 600 - margin.top - margin.bottom;  // Smaller height
 
-            function hideTooltip() {
-                d3.select("#tooltip").transition().duration(500).style("opacity", 0);
-            }
-        })();
-    </script>
+        // Extracting unique cylinder values from the data
+        const cylinders = [...new Set(data.map(d => +d.EngineCylinders))];
+
+        // Setting up scales
+        const x = d3.scaleLinear()
+                    .domain(d3.extent(cylinders))
+                    .nice()
+                    .range([0, width]);
+
+        const y = d3.scaleLinear()
+                    .domain(d3.extent(data, d => +d.AverageCityMPG))
+                    .nice()
+                    .range([height, 0]);
+
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+        // Setting up SVG
+        const svg = d3.select("#chart3")
+                      .append("svg")
+                      .attr("width", width + margin.left + margin.right)
+                      .attr("height", height + margin.top + margin.bottom)
+                      .append("g")
+                      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Drawing axes
+        svg.append("g")
+           .attr("class", "x axis")
+           .attr("transform", `translate(0,${height})`)
+           .call(d3.axisBottom(x).tickValues(cylinders).tickFormat(d3.format("d")));
+
+        svg.append("g")
+           .attr("class", "y axis")
+           .call(d3.axisLeft(y));
+
+        // Adding axis labels
+        svg.append("text")
+           .attr("class", "axis-label")
+           .attr("x", width / 2)
+           .attr("y", height + margin.bottom - 50)
+           .style("text-anchor", "middle")
+           .text("Engine Cylinders");
+
+        svg.append("text")
+           .attr("class", "axis-label")
+           .attr("transform", "rotate(-90)")
+           .attr("x", -height / 2)
+           .attr("y", -margin.left + 20)
+           .attr("dy", "1em")
+           .style("text-anchor", "middle")
+           .text("Average City MPG");
+
+        // Calculating averages
+        const averages = d3.groups(data, d => +d.EngineCylinders).map(([key, values]) => {
+            return {
+                cylinders: key,
+                avgMPG: d3.mean(values, d => +d.AverageCityMPG)
+            };
+        }).sort((a, b) => d3.ascending(a.cylinders, b.cylinders));
+
+        // Line drawer
+        const line = d3.line()
+                       .x(d => x(d.cylinders))
+                       .y(d => y(d.avgMPG));
+
+        svg.append("path")
+           .datum(averages)
+           .attr("class", "line")
+           .attr("fill", "none")
+           .attr("stroke", "black")
+           .attr("stroke-width", 2)
+           .attr("d", line);
+
+        // Drawing points
+        svg.selectAll(".dot")
+           .data(data)
+           .enter().append("circle")
+           .attr("class", "dot")
+           .attr("r", 5)
+           .attr("cx", d => x(+d.EngineCylinders))
+           .attr("cy", d => y(+d.AverageCityMPG))
+           .style("fill", "none")
+           .style("stroke", d => color(d.Make))
+           .style("stroke-width", 1.5)
+           .on("mouseover", function(event, d) {
+               tooltip.transition()
+                      .duration(200)
+                      .style("opacity", .9);
+               tooltip.html(`Manufacturer: ${d.Make}<br>Engine Cylinders: ${d.EngineCylinders}<br>City MPG: ${d.AverageCityMPG}`)
+                      .style("left", (event.pageX + 5) + "px")
+                      .style("top", (event.pageY - 28) + "px");
+           })
+           .on("mouseout", function() {
+               tooltip.transition()
+                      .duration(500)
+                      .style("opacity", 0);
+           });
+
+        // Tooltip for point details
+        const tooltip = d3.select("body").append("div")
+                          .attr("class", "tooltip")
+                          .style("opacity", 0)
+                          .style("position", "absolute")
+                          .style("text-align", "center")
+                          .style("width", "auto")
+                          .style("height", "auto")
+                          .style("padding", "8px")
+                          .style("font", "12px sans-serif")
+                          .style("background", "lightsteelblue")
+                          .style("border", "0px")
+                          .style("border-radius", "8px")
+                          .style("pointer-events", "none");
+
+        // Adding annotations
+        const keyInsight = data.reduce((max, d) => (+d.EngineCylinders > max.EngineCylinders && +d.AverageCityMPG < max.AverageCityMPG) ? d : max, data[0]);
+
+        svg.append("text")
+           .attr("class", "annotation")
+           .attr("x", x(+keyInsight.EngineCylinders) - 170)
+           .attr("y", y(+keyInsight.AverageCityMPG) - 30)
+           .attr("text-anchor", "middle")
+           .text("Insight: Lower MPG with More Cylinders");
+    }
+
+    // Loading the data and create Scene 3
+    d3.csv("https://flunky.github.io/cars2017.csv").then(function(data) {
+        createScatterPlot(data);
+    });
+</script>
+
+
+
 </body>
 </html>
