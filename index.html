@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Car Fuel Efficiency Visualization</title>
@@ -21,107 +21,113 @@
     <h1>Car Fuel Efficiency Visualization</h1>
     <div id="chart"></div>
     <script>
-        const data = await d3.csv("https://flunky.github.io/cars2017.csv");
-        data.forEach(d => {
-        d.AverageHighwayMPG = +d.AverageHighwayMPG;
-        d.AverageCityMPG = +d.AverageCityMPG;
-        // Aggregate data by manufacturer
-    const averageMPG = d3.rollups(data, v => ({
-        highway: d3.mean(v, d => d.AverageHighwayMPG),
-        city: d3.mean(v, d => d.AverageCityMPG)
-    }), d => d.Make).map(([make, avg]) => ({ make, ...avg }));
+        (async function() {
+            const data = await d3.csv("https://flunky.github.io/cars2017.csv");
 
-    // Create the visualization
-    createBarChart(averageMPG);
-    
-    function createBarChart(data) {
-    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
-    const width = 800 - margin.left - margin.right;
-    const height = 400 - margin.top - margin.bottom;
+            // Convert numerical values from strings to numbers
+            data.forEach(d => {
+                d.AverageHighwayMPG = +d.AverageHighwayMPG;
+                d.AverageCityMPG = +d.AverageCityMPG;
+            });
 
-    const svg = d3.select("#chart").append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-      .append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
+            // Aggregate data by manufacturer
+            const averageMPG = d3.rollups(data, v => ({
+                highway: d3.mean(v, d => d.AverageHighwayMPG),
+                city: d3.mean(v, d => d.AverageCityMPG)
+            }), d => d.Make).map(([make, avg]) => ({ make, ...avg }));
 
-    const x = d3.scaleBand()
-        .domain(data.map(d => d.make))
-        .range([0, width])
-        .padding(0.1);
+            // Create the visualization
+            createBarChart(averageMPG);
+        })();
 
-    const y = d3.scaleLinear()
-        .domain([0, d3.max(data, d => Math.max(d.highway, d.city))])
-        .nice()
-        .range([height, 0]);
+        function createBarChart(data) {
+            const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+            const width = 800 - margin.left - margin.right;
+            const height = 400 - margin.top - margin.bottom;
 
-    svg.append("g")
-        .selectAll(".bar")
-        .data(data)
-      .enter().append("rect")
-        .attr("class", "bar")
-        .attr("x", d => x(d.make))
-        .attr("y", d => y(d.highway))
-        .attr("width", x.bandwidth() / 2)
-        .attr("height", d => height - y(d.highway))
-        .attr("fill", "steelblue");
+            const svg = d3.select("#chart").append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+              .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    svg.append("g")
-        .selectAll(".bar")
-        .data(data)
-      .enter().append("rect")
-        .attr("class", "bar")
-        .attr("x", d => x(d.make) + x.bandwidth() / 2)
-        .attr("y", d => y(d.city))
-        .attr("width", x.bandwidth() / 2)
-        .attr("height", d => height - y(d.city))
-        .attr("fill", "orange");
+            const x = d3.scaleBand()
+                .domain(data.map(d => d.make))
+                .range([0, width])
+                .padding(0.1);
 
-    svg.append("g")
-        .attr("class", "x-axis")
-        .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(x))
-      .selectAll("text")
-        .attr("y", 0)
-        .attr("x", 9)
-        .attr("dy", ".35em")
-        .attr("transform", "rotate(45)")
-        .style("text-anchor", "start");
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data, d => Math.max(d.highway, d.city))])
+                .nice()
+                .range([height, 0]);
 
-    svg.append("g")
-        .attr("class", "y-axis")
-        .call(d3.axisLeft(y));
+            svg.append("g")
+                .selectAll(".bar")
+                .data(data)
+              .enter().append("rect")
+                .attr("class", "bar")
+                .attr("x", d => x(d.make))
+                .attr("y", d => y(d.highway))
+                .attr("width", x.bandwidth() / 2)
+                .attr("height", d => height - y(d.highway))
+                .attr("fill", "steelblue");
 
-    // Add labels
-    svg.append("text")
-        .attr("class", "axis-label")
-        .attr("x", width / 2)
-        .attr("y", height + margin.bottom)
-        .style("text-anchor", "middle")
-        .text("Manufacturer");
+            svg.append("g")
+                .selectAll(".bar")
+                .data(data)
+              .enter().append("rect")
+                .attr("class", "bar")
+                .attr("x", d => x(d.make) + x.bandwidth() / 2)
+                .attr("y", d => y(d.city))
+                .attr("width", x.bandwidth() / 2)
+                .attr("height", d => height - y(d.city))
+                .attr("fill", "orange");
 
-    svg.append("text")
-        .attr("class", "axis-label")
-        .attr("transform", "rotate(-90)")
-        .attr("y", -margin.left)
-        .attr("x", -height / 2)
-        .attr("dy", "1em")
-        .style("text-anchor", "middle")
-        .text("Miles Per Gallon (MPG)");
+            svg.append("g")
+                .attr("class", "x-axis")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(x))
+              .selectAll("text")
+                .attr("y", 0)
+                .attr("x", 9)
+                .attr("dy", ".35em")
+                .attr("transform", "rotate(45)")
+                .style("text-anchor", "start");
 
-    // Add annotations
-    svg.append("text")
-        .attr("class", "annotation")
-        .attr("x", x("Acura") + x.bandwidth() / 4)
-        .attr("y", y(d3.max(data, d => d.highway)) - 10)
-        .text("Highest Highway MPG");
+            svg.append("g")
+                .attr("class", "y-axis")
+                .call(d3.axisLeft(y));
 
-    svg.append("text")
-        .attr("class", "annotation")
-        .attr("x", x("Aston Martin") + x.bandwidth() / 4)
-        .attr("y", y(d3.min(data, d => d.city)) + 20)
-        .text("Lowest City MPG");
-}        
+            // Add labels
+            svg.append("text")
+                .attr("class", "axis-label")
+                .attr("x", width / 2)
+                .attr("y", height + margin.bottom)
+                .style("text-anchor", "middle")
+                .text("Manufacturer");
+
+            svg.append("text")
+                .attr("class", "axis-label")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -margin.left)
+                .attr("x", -height / 2)
+                .attr("dy", "1em")
+                .style("text-anchor", "middle")
+                .text("Miles Per Gallon (MPG)");
+
+            // Add annotations
+            svg.append("text")
+                .attr("class", "annotation")
+                .attr("x", x("Acura") + x.bandwidth() / 4)
+                .attr("y", y(d3.max(data, d => d.highway)) - 10)
+                .text("Highest Highway MPG");
+
+            svg.append("text")
+                .attr("class", "annotation")
+                .attr("x", x("Aston Martin") + x.bandwidth() / 4)
+                .attr("y", y(d3.min(data, d => d.city)) + 20)
+                .text("Lowest City MPG");
+        }
     </script>
 </body>
 </html>
